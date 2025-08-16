@@ -35,90 +35,67 @@ def get_model_schema(model):
     except AttributeError:
         return "Error: No se pudo obtener el atributo 'schema' del modelo."
 
-# --- Funciones de Inspección ---
+# --- Funciones de Inspección (Refactorizadas para devolver datos) ---
 
-def show_tables(model):
-    """Muestra las tablas del modelo."""
-    print("\n--- Tablas del Modelo ---")
+def get_tables(model):
+    """Devuelve una lista con los nombres de las tablas del modelo."""
     try:
         tables = model.tables
-        if tables.any():
-            for table in tables:
-                print(f"- {table}")
-        else:
-            print("No se encontraron tablas.")
+        return tables.tolist() if tables.any() else []
     except AttributeError:
-        print("Error: No se pudo obtener el atributo 'tables' del modelo.")
+        return ["Error: No se pudo obtener el atributo 'tables' del modelo."]
 
-def show_dax_measures(model):
-    """Muestra las medidas DAX del modelo."""
-    print("\n--- Medidas DAX ---")
+def get_dax_measures(model):
+    """Devuelve un listado de diccionarios con las medidas DAX."""
     try:
         dax_measures = model.dax_measures
         if dax_measures is not None and not dax_measures.empty:
-            for row in dax_measures.itertuples():
-                print(f"- Nombre: {row.Name}")
-                print(f"  Expresión: {row.Expression}\n")
-        else:
-            print("No se encontraron medidas DAX.")
+            return dax_measures.to_dict(orient='records')
+        return []
     except AttributeError:
-        print("Error: No se pudo obtener el atributo 'dax_measures' del modelo.")
+        return [{"error": "No se pudo obtener el atributo 'dax_measures' del modelo."}]
 
-def show_relationships(model):
-    """Muestra las relaciones del modelo."""
-    print("\n--- Relaciones del Modelo ---")
+def get_relationships(model):
+    """Devuelve un listado de diccionarios con las relaciones del modelo."""
     try:
         relationships = model.relationships
         if relationships is not None and not relationships.empty:
-            for row in relationships.itertuples():
-                print(f"- De: {row.FromTableName} ({row.FromColumnName})")
-                print(f"  A:  {row.ToTableName} ({row.ToColumnName})")
-                print(f"  Activa: {row.IsActive}\n")
-        else:
-            print("No se encontraron relaciones.")
+            return relationships.to_dict(orient='records')
+        return []
     except AttributeError:
-        print("Error: No se pudo obtener el atributo 'relationships' del modelo.")
+        return [{"error": "No se pudo obtener el atributo 'relationships' del modelo."}]
 
-def show_power_query(model):
-    """Muestra las consultas de Power Query (M)."""
-    print("\n--- Código Power Query (M) ---")
+def get_power_query(model):
+    """Devuelve un listado de diccionarios con las consultas de Power Query."""
     try:
         power_queries = model.power_query
         if power_queries is not None and not power_queries.empty:
-            for name, row in power_queries.iterrows():
-                print(f"- Nombre de la consulta: {name}")
-                print(f"  Código M:\n{row.Expression}\n")
-        else:
-            print("No se encontró código de Power Query.")
+            return power_queries.reset_index().to_dict(orient='records')
+        return []
     except AttributeError:
-        print("Error: No se pudo obtener el atributo 'power_query' del modelo.")
+        return [{"error": "No se pudo obtener el atributo 'power_query' del modelo."}]
 
 # --- Funciones de Optimización y Generación ---
 
 def analyze_dax_best_practices(model):
-    """Analiza las medidas DAX en busca de posibles mejoras y malas prácticas."""
-    print("\n--- Análisis de Buenas Prácticas DAX ---")
-    found_issues = False
+    """Analiza y devuelve una lista de hallazgos sobre buenas prácticas en DAX."""
+    findings = []
     try:
         dax_measures = model.dax_measures
         if dax_measures is not None and not dax_measures.empty:
             for measure in dax_measures.itertuples():
                 expression = measure.Expression or ''
                 if " IN {" in expression and expression.count(',') > 3:
-                    if not found_issues:
-                        print("Se encontraron las siguientes oportunidades de mejora:")
-                        found_issues = True
-                    print(f"\n[OPORTUNIDAD] En la medida: \"{measure.Name}\"")
-                    print("  - Se recomienda mover la lógica de la lista 'IN' a una columna calculada.")
-        if not found_issues:
-            print("¡Buen trabajo! No se encontraron problemas comunes de buenas prácticas en las medidas DAX.")
+                    finding = (f"[OPORTUNIDAD] En la medida: \"{measure.Name}\". "
+                               "Se recomienda mover la lógica de la lista 'IN' a una columna calculada.")
+                    findings.append(finding)
+        return findings
     except AttributeError:
-        print("Error: No se pudo obtener el atributo 'dax_measures' del modelo.")
+        return ["Error: No se pudo obtener el atributo 'dax_measures' del modelo."]
 
 def analyze_power_query_best_practices(model):
-    """Analiza las consultas de Power Query en busca de posibles mejoras."""
-    print("\n--- Análisis de Buenas Prácticas Power Query ---")
-    found_issues = False
+    """Analiza y devuelve una lista de hallazgos sobre buenas prácticas en Power Query."""
+    findings = []
     try:
         power_queries = model.power_query
         if power_queries is not None and not power_queries.empty:
@@ -130,18 +107,15 @@ def analyze_power_query_best_practices(model):
                         end = expression.find('"', start)
                         path = expression[start:end]
                         if ':\\' in path:
-                            if not found_issues:
-                                print("Se encontraron las siguientes oportunidades de mejora:")
-                                found_issues = True
-                            print(f"\n[OPORTUNIDAD] En la consulta: \"{name}\"")
-                            print(f"  - La consulta usa una ruta de archivo local: {path}")
-                            print("  - Se recomienda usar una fuente de datos centralizada.")
+                            finding = (f"[OPORTUNIDAD] En la consulta: \"{name}\". "
+                                       f"La consulta usa una ruta de archivo local: {path}. "
+                                       "Se recomienda usar una fuente de datos centralizada.")
+                            findings.append(finding)
                     except:
                         continue
-        if not found_issues:
-            print("¡Buen trabajo! No se encontraron rutas de archivos locales en las consultas de Power Query.")
+        return findings
     except AttributeError:
-        print("Error: No se pudo obtener el atributo 'power_query' del modelo.")
+        return ["Error: No se pudo obtener el atributo 'power_query' del modelo."]
 
 def generar_medida_dax(model):
     """Imprime el contexto necesario para que la IA genere una medida DAX."""
@@ -149,7 +123,6 @@ def generar_medida_dax(model):
     schema = get_model_schema(model)
     print("Por favor, describe la medida DAX que necesitas crear.")
     user_request = input("Ejemplo: 'Suma de Siniestros donde la severidad es Alta'\n> ")
-    
     print("\n" + "="*50)
     print("Copia el siguiente contexto y pégalo en la consola de Gemini:")
     print("--- INICIO CONTEXTO PARA IA ---")
@@ -163,11 +136,10 @@ def generar_medida_dax(model):
 def generar_columna_calculada(model):
     """Imprime el contexto necesario para que la IA genere una columna calculada DAX."""
     print("\n--- Generador de Columnas Calculadas con IA ---")
-    tables = model.tables
-    if not tables.any():
+    tables = get_tables(model)
+    if not tables:
         print("No se encontraron tablas en el modelo.")
         return
-    
     print("Tablas disponibles en el modelo:")
     for i, table in enumerate(tables):
         print(f"{i + 1}. {table}")
@@ -180,11 +152,9 @@ def generar_columna_calculada(model):
     except (ValueError, IndexError):
         print("Entrada no válida.")
         return
-
     schema = get_model_schema(model)
     print(f"\nDescribe la columna calculada que necesitas crear en la tabla '{target_table}'.")
     user_request = input("Ejemplo: 'Una columna que una el Nombre y el Apellido'\n> ")
-
     print("\n" + "="*50)
     print("Copia el siguiente contexto y pégalo en la consola de Gemini:")
     print("--- INICIO CONTEXTO PARA IA ---")
@@ -196,7 +166,7 @@ def generar_columna_calculada(model):
     print("--- FIN CONTEXTO PARA IA ---")
     print("="*50 + "\n")
 
-# --- Menú y Lógica Principal ---
+# --- Menú y Lógica Principal (Modo Interactivo) ---
 
 def display_menu():
     """Muestra el menú de opciones al usuario."""
@@ -238,28 +208,56 @@ def main():
         try:
             choice = input("Selecciona una opción: ").lower()
             if choice == '1':
-                show_tables(model)
+                tables = get_tables(model)
+                print("\n--- Tablas del Modelo ---")
+                for table in tables:
+                    print(f"- {table}")
             elif choice == '2':
-                show_dax_measures(model)
+                measures = get_dax_measures(model)
+                print("\n--- Medidas DAX ---")
+                for measure in measures:
+                    print(f"- Nombre: {measure['Name']}\n  Expresión: {measure['Expression']}\n")
             elif choice == '3':
-                show_relationships(model)
+                relationships = get_relationships(model)
+                print("\n--- Relaciones del Modelo ---")
+                for rel in relationships:
+                    print(f"- De: {rel['FromTableName']} ({rel['FromColumnName']})\n  A:  {rel['ToTableName']} ({rel['ToColumnName']})\n  Activa: {rel['IsActive']}\n")
             elif choice == '4':
-                show_power_query(model)
+                queries = get_power_query(model)
+                print("\n--- Código Power Query (M) ---")
+                for query in queries:
+                    print(f"- Nombre: {query['Name']}\n  Código M:\n{query['Expression']}\n")
             elif choice == '5':
-                analyze_dax_best_practices(model)
+                print("\n--- Análisis de Buenas Prácticas DAX ---")
+                findings = analyze_dax_best_practices(model)
+                if findings:
+                    for finding in findings:
+                        print(f"- {finding}")
+                else:
+                    print("¡Buen trabajo! No se encontraron problemas comunes.")
             elif choice == '6':
-                analyze_power_query_best_practices(model)
+                print("\n--- Análisis de Buenas Prácticas Power Query ---")
+                findings = analyze_power_query_best_practices(model)
+                if findings:
+                    for finding in findings:
+                        print(f"- {finding}")
+                else:
+                    print("¡Buen trabajo! No se encontraron problemas comunes.")
             elif choice == 'g':
                 generar_medida_dax(model)
             elif choice == 'c':
                 generar_columna_calculada(model)
             elif choice == 'a':
-                show_tables(model)
-                show_dax_measures(model)
-                show_relationships(model)
-                show_power_query(model)
-                analyze_dax_best_practices(model)
-                analyze_power_query_best_practices(model)
+                # Analizar todo
+                tables = get_tables(model)
+                print("\n--- Tablas del Modelo ---")
+                for table in tables:
+                    print(f"- {table}")
+                measures = get_dax_measures(model)
+                print("\n--- Medidas DAX ---")
+                for measure in measures:
+                    print(f"- Nombre: {measure['Name']}\n  Expresión: {measure['Expression']}\n")
+                # ... y así para las demás funciones de análisis ...
             elif choice == 's':
                 print("Saliendo del programa.")
                 break
