@@ -1,0 +1,109 @@
+openapi: 3.0.0
+info:
+  title: API de Análisis de Power BI (MCP)
+  version: 1.0.0
+  description: API para analizar archivos .pbix y obtener información estructurada y recomendaciones.
+servers:
+  - url: http://127.0.0.1:5000
+    description: Servidor de desarrollo local
+  - url: https://api-pbi.example.com # URL de despliegue futura
+    description: Servidor de producción (ejemplo)
+paths:
+  /upload_and_analyze:
+    post:
+      summary: Analiza un archivo .pbix subido
+      description: Recibe un archivo .pbix, lo analiza y devuelve un reporte JSON completo con tablas, medidas, relaciones, consultas M y hallazgos de buenas prácticas.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: El archivo .pbix a analizar.
+      responses:
+        '200':
+          description: Análisis exitoso del archivo .pbix.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  filename:
+                    type: string
+                    description: Nombre del archivo analizado.
+                  analysis:
+                    type: object
+                    properties:
+                      tables:
+                        type: array
+                        items:
+                          type: string
+                        description: Lista de nombres de tablas.
+                      dax_measures:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            Name:
+                              type: string
+                            Expression:
+                              type: string
+                        description: Lista de medidas DAX con nombre y expresión.
+                      relationships:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            FromTableName:
+                              type: string
+                            FromColumnName:
+                              type: string
+                            ToTableName:
+                              type: string
+                            ToColumnName:
+                              type: string
+                            IsActive:
+                              type: boolean
+                        description: Lista de relaciones del modelo.
+                      power_queries:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            Name:
+                              type: string
+                            Expression:
+                              type: string
+                        description: Lista de consultas de Power Query (M) con nombre y código.
+                      dax_best_practices_findings:
+                        type: array
+                        items:
+                          type: string
+                        description: Hallazgos de buenas prácticas en medidas DAX.
+                      power_query_best_practices_findings:
+                        type: array
+                        items:
+                          type: string
+                        description: Hallazgos de buenas prácticas en Power Query.
+        '400':
+          description: Petición inválida (ej. archivo no encontrado o tipo incorrecto).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Error interno del servidor durante el análisis.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
