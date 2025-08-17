@@ -4,7 +4,7 @@ API para el Asistente de Análisis de Power BI (MCP) v2.0
 Permite la carga y análisis de archivos .pbix.
 """
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 import mcp  # Nuestro script de lógica
 from pbixray import PBIXRay
@@ -74,9 +74,16 @@ def upload_and_analyze_api():
             # Limpiar el archivo subido incluso si hay un error
             if os.path.exists(file_path):
                 os.remove(file_path)
-            return jsonify({"error": "Ocurrió un error durante el análisis: {str(e)}"}), 500
+            return jsonify({"error": f"Ocurrió un error durante el análisis: {str(e)}"}), 500
     
     return jsonify({"error": "Tipo de archivo no permitido."}), 400
+
+@app.route('/openapi.yaml')
+def serve_openapi_yaml():
+    """Sirve el archivo openapi.yaml."""
+    # Construye la ruta de forma robusta, relativa al script actual
+    project_root = os.path.abspath(os.path.dirname(__file__))
+    return send_from_directory(project_root, 'openapi.yaml')
 
 if __name__ == '__main__':
     app.run(debug=True)
